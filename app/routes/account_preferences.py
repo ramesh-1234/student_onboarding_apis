@@ -77,3 +77,101 @@ def save_account_preferences():
             'created_at': preferences.created_at.isoformat()
         }
     }), 200
+
+
+@account_bp.route('/account-preferences', methods=['GET'])
+def get_preferences():
+    mobile = request.args.get('mobile')
+    if not mobile:
+        return jsonify({'status': 400, 'error': 'Mobile is required'}), 400
+
+    mobile_entry = Mobile.query.filter_by(mobile=mobile).first()
+    if not mobile_entry:
+        return jsonify({'status': 404, 'error': 'Mobile not found'}), 404
+
+    preferences = AccountPreferences.query.filter_by(
+        mobile_id=mobile_entry.id).first()
+    if not preferences:
+        return jsonify({'status': 404, 'error': 'Preferences not found'}), 404
+
+    return jsonify({
+        'status': 200,
+        'message': 'Account preferences fetched successfully',
+        'data': {
+            'application_number': preferences.application.application_number,
+            'application_id': preferences.application_id,
+            'account_type': preferences.account_type,
+            'profession': preferences.profession,
+            'enable_online_banking': preferences.enable_online_banking,
+            'request_debit_card': preferences.request_debit_card,
+            'card_type': preferences.card_type,
+            'created_at': preferences.created_at.isoformat() if preferences.created_at else None,
+            'modified_at': preferences.modified_at.isoformat() if preferences.modified_at else None
+        }
+    })
+
+
+@account_bp.route('/account-preferences', methods=['PUT'])
+def update_preferences():
+    data = request.get_json()
+    mobile = data.get('mobile')
+    if not mobile:
+        return jsonify({'status': 400, 'error': 'Mobile is required'}), 400
+
+    mobile_entry = Mobile.query.filter_by(mobile=mobile).first()
+    if not mobile_entry:
+        return jsonify({'status': 404, 'error': 'Mobile not found'}), 404
+
+    preferences = AccountPreferences.query.filter_by(
+        mobile_id=mobile_entry.id).first()
+    if not preferences:
+        return jsonify({'status': 404, 'error': 'Preferences not found'}), 404
+
+    preferences.account_type = data.get(
+        'account_type', preferences.account_type)
+    preferences.profession = data.get('profession', preferences.profession)
+    preferences.enable_online_banking = data.get(
+        'enable_online_banking', preferences.enable_online_banking)
+    preferences.request_debit_card = data.get(
+        'request_debit_card', preferences.request_debit_card)
+    preferences.card_type = data.get('card_type', preferences.card_type)
+    preferences.modified_at = datetime.utcnow()
+
+    db.session.commit()
+
+    return jsonify({
+        'status': 200,
+        'message': 'Preferences updated successfully',
+        'data': {
+            'application_number': preferences.application.application_number,
+            'created_at': preferences.created_at.isoformat() if preferences.created_at else None,
+            'modified_at': preferences.modified_at.isoformat() if preferences.modified_at else None
+        }
+    })
+
+
+@account_bp.route('/account-preferences', methods=['DELETE'])
+def delete_preferences():
+    mobile = request.args.get('mobile')
+    if not mobile:
+        return jsonify({'status': 400, 'error': 'Mobile is required'}), 400
+
+    mobile_entry = Mobile.query.filter_by(mobile=mobile).first()
+    if not mobile_entry:
+        return jsonify({'status': 404, 'error': 'Mobile not found'}), 404
+
+    preferences = AccountPreferences.query.filter_by(
+        mobile_id=mobile_entry.id).first()
+    if not preferences:
+        return jsonify({'status': 404, 'error': 'Preferences not found'}), 404
+
+    db.session.delete(preferences)
+    db.session.commit()
+
+    return jsonify({
+        'status': 200,
+        'message': 'Account preferences deleted successfully',
+        'data': {
+            'id': preferences.id
+        }
+    })

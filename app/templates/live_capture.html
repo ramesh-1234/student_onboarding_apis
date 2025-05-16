@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Live Webcam Capture</title>
+    <style>
+      video,
+      img {
+        max-width: 100%;
+        border: 1px solid #ccc;
+        margin-bottom: 10px;
+      }
+      input {
+        display: block;
+        margin-bottom: 10px;
+        padding: 8px;
+        width: 250px;
+      }
+      button {
+        margin-right: 10px;
+        padding: 10px 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Live Webcam Capture</h2>
+
+    <input
+      type="text"
+      id="applicationNumberInput"
+      placeholder="Enter Application Number"
+    />
+
+    <video id="webcam" autoplay playsinline width="320" height="240"></video>
+    <img
+      id="preview"
+      alt="Captured Image Preview"
+      style="display: none; max-width: 320px"
+    />
+
+    <div>
+      <button id="captureBtn">Capture</button>
+      <button id="retakeBtn" style="display: none">Retake</button>
+      <button id="uploadBtn" style="display: none">Upload</button>
+    </div>
+
+    <script>
+      const video = document.getElementById("webcam");
+      const preview = document.getElementById("preview");
+      const captureBtn = document.getElementById("captureBtn");
+      const retakeBtn = document.getElementById("retakeBtn");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const applicationNumberInput = document.getElementById(
+        "applicationNumberInput"
+      );
+
+      let stream;
+
+      async function startWebcam() {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = stream;
+          video.style.display = "block";
+          preview.style.display = "none";
+          captureBtn.style.display = "inline-block";
+          retakeBtn.style.display = "none";
+          uploadBtn.style.display = "none";
+        } catch (err) {
+          alert("Error accessing webcam: " + err.message);
+        }
+      }
+
+      function stopWebcam() {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+        video.style.display = "none";
+      }
+
+      captureBtn.onclick = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 240;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        preview.src = canvas.toDataURL("image/jpeg");
+        preview.style.display = "block";
+
+        stopWebcam();
+        captureBtn.style.display = "none";
+        retakeBtn.style.display = "inline-block";
+        uploadBtn.style.display = "inline-block";
+      };
+
+      retakeBtn.onclick = () => {
+        startWebcam();
+      };
+
+      uploadBtn.onclick = async () => {
+        const base64Image = preview.src;
+        const applicationNumber = applicationNumberInput.value.trim();
+
+        if (!applicationNumber) {
+          alert("Please enter Application Number.");
+          return;
+        }
+
+        try {
+          const blob = await (await fetch(base64Image)).blob();
+          const formData = new FormData();
+          formData.append("application_number", applicationNumber);
+          formData.append("image", blob, "webcam.jpg");
+
+          const response = await fetch("/live-capture/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            alert(
+              "Upload successful!\nApplication Number: " + applicationNumber
+            );
+            applicationNumberInput.value = "";
+            retakeBtn.click();
+          } else {
+            alert("Upload failed: " + (result.error || "Unknown error"));
+          }
+        } catch (err) {
+          alert("Upload error: " + err.message);
+        }
+      };
+
+      // Initialize webcam on load
+      startWebcam();
+    </script>
+  </body>
+</html>

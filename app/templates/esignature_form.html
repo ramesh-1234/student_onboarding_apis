@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>E-Signature Upload</title>
+    <style>
+      canvas {
+        border: 1px solid black;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Upload E-Signature</h2>
+    <form id="uploadForm">
+      <label for="application_number">Application Number:</label>
+      <input
+        type="text"
+        id="application_number"
+        name="application_number"
+        required
+      /><br /><br />
+
+      <canvas id="canvas" width="300" height="100"></canvas><br />
+      <button type="button" onclick="clearCanvas()">Clear</button><br /><br />
+
+      <input type="submit" value="Submit" />
+    </form>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      let drawing = false;
+
+      canvas.addEventListener("mousedown", () => (drawing = true));
+      canvas.addEventListener("mouseup", () => (drawing = false));
+      canvas.addEventListener("mousemove", draw);
+
+      function draw(e) {
+        if (!drawing) return;
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "black";
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+      }
+
+      function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+      }
+
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const application_number =
+            document.getElementById("application_number").value;
+
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve));
+          const formData = new FormData();
+          formData.append("application_number", application_number);
+          formData.append("image", blob, "signature.png");
+
+          fetch("/esignature/upload", {
+            method: "POST",
+            body: formData,
+          })
+            .then((res) => res.json())
+            .then((data) => alert(JSON.stringify(data)))
+            .catch((err) => alert("Upload failed"));
+        });
+    </script>
+  </body>
+</html>
