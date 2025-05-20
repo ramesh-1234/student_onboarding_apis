@@ -25,6 +25,11 @@ flask db migrate -m "Initial migration"
 flask db upgrade
 
 
+### 4. For dependencies
+
+pip install -r requirements.txt
+
+
 ### 5. Run the App
 flask run (default: 5000)
 or
