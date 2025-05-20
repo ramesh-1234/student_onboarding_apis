@@ -18,7 +18,9 @@
         id="application_number"
         name="application_number"
         required
-      /><br /><br />
+        readonly
+      />
+      <br /><br />
 
       <canvas id="canvas" width="300" height="100"></canvas><br />
       <button type="button" onclick="clearCanvas()">Clear</button><br /><br />
@@ -27,6 +29,14 @@
     </form>
 
     <script>
+      // ✅ Prefill application number from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const applicationNumber = urlParams.get("application_number");
+      if (applicationNumber) {
+        const input = document.getElementById("application_number");
+        input.value = applicationNumber;
+        input.readOnly = true;
+      }
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
       let drawing = false;
@@ -68,7 +78,12 @@
             body: formData,
           })
             .then((res) => res.json())
-            .then((data) => alert(JSON.stringify(data)))
+            .then((data) => {
+              alert(JSON.stringify(data));
+              window.location.href = `/combined/details?application_number=${encodeURIComponent(
+                application_number
+              )}&preview=true`;
+            })
             .catch((err) => alert("Upload failed"));
         });
     </script>

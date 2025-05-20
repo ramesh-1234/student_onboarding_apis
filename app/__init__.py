@@ -24,13 +24,17 @@ def create_app():
     from app.routes.address_upload import address_upload_bp
     from app.routes.esignature import esignature_bp
     from app.routes.combined import combined_bp
+    from app.routes.frontend import frontend_bp
     app.register_blueprint(verify_bp)
     app.register_blueprint(account_bp)
-    app.register_blueprint(verify_aadhaar_bp)
+    app.register_blueprint(
+        verify_aadhaar_bp)
     app.register_blueprint(live_capture_bp, url_prefix='/live-capture')
     app.register_blueprint(address_upload_bp)
     app.register_blueprint(esignature_bp, url_prefix='/esignature')
     app.register_blueprint(combined_bp, url_prefix='/combined')
+    app.register_blueprint(frontend_bp)
+
     # Serve files from the uploads folder
 
     @app.route('/uploads/<path:filename>')

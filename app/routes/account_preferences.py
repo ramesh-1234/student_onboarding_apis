@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, render_template, request, jsonify
 from app.models import AccountPreferences, Application, Mobile
 from app.extensions import db
 
@@ -175,3 +175,18 @@ def delete_preferences():
             'id': preferences.id
         }
     })
+
+
+@account_bp.route('/account-preferences-form', methods=['GET'])
+def show_account_preferences_form():
+    mobile = request.args.get('mobile')
+    application_number = request.args.get('application_number')
+
+    if not mobile:
+        return "Mobile number is required", 400
+
+    return render_template(
+        'account_preferences.html',
+        mobile=mobile,
+        application_number=application_number
+    )

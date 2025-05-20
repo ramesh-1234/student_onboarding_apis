@@ -29,7 +29,9 @@
     <input
       type="text"
       id="applicationNumberInput"
-      placeholder="Enter Application Number"
+      value="{{ application_number }}"
+      readonly
+      placeholder="Application Number"
     />
 
     <video id="webcam" autoplay playsinline width="320" height="240"></video>
@@ -124,6 +126,10 @@
             alert(
               "Upload successful!\nApplication Number: " + applicationNumber
             );
+            // After alert OK is clicked, navigate to /esignature
+            window.location.href = `/esignature?application_number=${encodeURIComponent(
+              applicationNumber
+            )}`;
             applicationNumberInput.value = "";
             retakeBtn.click();
           } else {

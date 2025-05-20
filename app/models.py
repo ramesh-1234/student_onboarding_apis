@@ -23,13 +23,42 @@ class MobileOTP(db.Model):
     expired_at = db.Column(db.DateTime)
 
 
+class Email(db.Model):
+    __tablename__ = 'email'
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+
+    # Relationships
+    otps = db.relationship('EmailOTP', backref='email', lazy=True)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+
+
+class EmailOTP(db.Model):
+    __tablename__ = 'email_otp'
+    id = db.Column(db.Integer, primary_key=True)
+    email_id = db.Column(db.Integer, db.ForeignKey('email.id'), nullable=False)
+    otp = db.Column(db.String(6), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expired_at = db.Column(db.DateTime)
+
+
 class Application(db.Model):
     __tablename__ = 'application'
     id = db.Column(db.Integer, primary_key=True)
-    mobile_id = db.Column(db.Integer, db.ForeignKey(
-        'mobile.id'), nullable=False)
-    application_number = db.Column(db.String(20), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    mobile_id = db.Column(
+        db.Integer, db.ForeignKey('mobile.id'), nullable=True)
+    email_id = db.Column(db.Integer, db.ForeignKey('email.id'), nullable=True)
+
+    application_number = db.Column(db.String(10), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=db.func.now())
+
+    # Optional: status tracking (you mentioned this)
+    # or: pending, completed, rejected, etc.
+    status = db.Column(db.String(50), default='submitted')
+
+    # Relationships
+    email = db.relationship('Email', backref='applications', lazy=True)
 
 
 class AccountPreferences(db.Model):

@@ -8,6 +8,9 @@ instance/
 # Flask migrations
 migrations/versions/
 
+# Uplaods
+uploads/
+
 # VS Code
 .vscode/
 

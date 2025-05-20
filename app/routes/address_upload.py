@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, render_template, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import Application, AddressUpload
@@ -195,3 +195,18 @@ def delete_uploaded_address():
     db.session.commit()
 
     return jsonify({'status': 200, 'message': 'Address deleted successfully'})
+
+
+@address_upload_bp.route('/address-upload-form', methods=['GET'])
+def show_address_upload_form():
+    mobile = request.args.get('mobile')
+    application_number = request.args.get('application_number')
+
+    if not mobile:
+        return "Mobile number is required", 400
+
+    return render_template(
+        'address_details.html',
+        mobile=mobile,
+        application_number=application_number
+    )

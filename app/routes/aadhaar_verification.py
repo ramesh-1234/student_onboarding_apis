@@ -1,7 +1,7 @@
 from datetime import datetime
 import os
 import uuid
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 from app.extensions import db
 from app.models import AadhaarDetails, Mobile, Application, AccountPreferences
@@ -236,3 +236,18 @@ def get_aadhaar_details():
             'modified_at': aadhaar_details.modified_at.isoformat() if aadhaar_details.modified_at else None
         }
     }), 200
+
+
+@verify_aadhaar_bp.route('/aadhaar-verification-form', methods=['GET'])
+def show_aadhaar_verification_form():
+    mobile = request.args.get('mobile')
+    application_number = request.args.get('application_number')
+
+    if not mobile:
+        return "Mobile number is required", 400
+
+    return render_template(
+        'aadhaar_details.html',
+        mobile=mobile,
+        application_number=application_number
+    )

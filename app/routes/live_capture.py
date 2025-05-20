@@ -12,7 +12,8 @@ live_capture_bp = Blueprint(
 
 @live_capture_bp.route('/')
 def capture_page():
-    return render_template('live_capture.html')
+    application_number = request.args.get('application_number', '')
+    return render_template('live_capture.html', application_number=application_number)
 
 
 @live_capture_bp.route('/upload', methods=['POST'])
