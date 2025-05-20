@@ -26,8 +26,9 @@ flask db upgrade
 
 
 ### 5. Run the App
-flask run
-
+flask run (default: 5000)
+or
+python app.py(this runs on configured localhost:8000)
 
 Requirements
 Flask
