@@ -7,7 +7,7 @@ Flask-based API for customer onboarding with mobile verification, account prefer
 ### 1. Clone the Repository
 
 ````bash
-git clone https://github.com/yourusername/customer_onboarding_apis.git
+git clone https://github.com/ramesh-1234/student_onboarding_apis.git
 cd customer_onboarding_apis
 
 
