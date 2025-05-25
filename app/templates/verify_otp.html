@@ -16,14 +16,20 @@
         <div class="col-md-6">
           <div class="card shadow">
             <div class="card-body">
-              <h4 class="mb-4 text-center">OTP Verification</h4>
+              <h4 id="form-heading" class="mb-4 text-center">
+                OTP Verification
+              </h4>
               <form id="otp-form">
                 <div class="mb-3">
-                  <label for="mobile" class="form-label">Mobile Number</label>
+                  <label
+                    for="identifier"
+                    id="identifier-label"
+                    class="form-label"
+                  ></label>
                   <input
                     type="text"
-                    id="mobile"
-                    name="mobile"
+                    id="identifier"
+                    name="identifier"
                     class="form-control"
                     readonly
                   />
@@ -52,34 +58,75 @@
     </div>
 
     <script>
-      // Prefill the form from URL parameters
       const params = new URLSearchParams(window.location.search);
       const mobile = params.get("mobile");
+      const email = params.get("email");
       const otp = params.get("otp");
-      document.getElementById("mobile").value = mobile;
-      document.getElementById("otp").value = otp;
+
+      const identifierInput = document.getElementById("identifier");
+      const identifierLabel = document.getElementById("identifier-label");
+      const formHeading = document.getElementById("form-heading");
+      const messageDiv = document.getElementById("message");
+
+      let mode = "";
+      if (mobile) {
+        mode = "mobile";
+        identifierInput.value = mobile;
+        identifierLabel.innerText = "Mobile Number";
+        formHeading.innerText = "Verify Mobile OTP";
+      } else if (email) {
+        mode = "email";
+        identifierInput.value = email;
+        identifierLabel.innerText = "Email Address";
+        formHeading.innerText = "Verify Email OTP";
+      }
+
+      document.getElementById("otp").value = otp || "";
 
       document
         .getElementById("otp-form")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
+
+          const identifierValue = identifierInput.value.trim();
+          const otpValue = document.getElementById("otp").value.trim();
+
+          const fieldLabel =
+            mode === "mobile" ? "Mobile number" : "Email address";
+
+          if (!identifierValue || !otpValue) {
+            messageDiv.innerHTML = `<div class="alert alert-warning">${fieldLabel} and OTP are required.</div>`;
+            return;
+          }
+
+          const payload = {
+            otp: otpValue,
+            ...(mode === "mobile"
+              ? { mobile: identifierValue }
+              : { email: identifierValue }),
+          };
+
+          const endpoint =
+            mode === "mobile" ? "/verify-otp" : "/verify-email-otp";
+
           try {
-            const res = await axios.post("/verify-otp", {
-              mobile,
-              otp,
-            });
-            
+            const res = await axios.post(endpoint, payload);
             const appNumber = res.data.data.application_number;
-            document.getElementById(
-              "message"
-            ).innerHTML = `<div class='alert alert-success'>OTP Verified. Redirecting...</div>`;
+
+            messageDiv.innerHTML =
+              "<div class='alert alert-success'>OTP Verified. Redirecting...</div>";
+
+            const redirectUrl = `/account-preferences-form?${
+              mode === "mobile"
+                ? `mobile=${encodeURIComponent(identifierValue)}`
+                : `email=${encodeURIComponent(identifierValue)}`
+            }&application_number=${encodeURIComponent(appNumber)}`;
+
             setTimeout(() => {
-              window.location.href = `/account-preferences-form?mobile=${mobile}&application_number=${appNumber}`;
+              window.location.href = redirectUrl;
             }, 1500);
           } catch (err) {
-            document.getElementById(
-              "message"
-            ).innerHTML = `<div class='alert alert-danger'>${
+            messageDiv.innerHTML = `<div class='alert alert-danger'>${
               err.response?.data?.message || "Verification failed"
             }</div>`;
           }

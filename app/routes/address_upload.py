@@ -197,16 +197,21 @@ def delete_uploaded_address():
     return jsonify({'status': 200, 'message': 'Address deleted successfully'})
 
 
-@address_upload_bp.route('/address-upload-form', methods=['GET'])
+# @address_upload_bp.route('/address-upload-form', methods=['GET'])
+# def show_address_upload_form():
+#     mobile = request.args.get('mobile')
+#     application_number = request.args.get('application_number')
+
+#     if not mobile:
+#         return "Mobile number is required", 400
+
+#     return render_template(
+#         'address_details.html',
+#         mobile=mobile,
+#         application_number=application_number
+#     )
+
+
+@address_upload_bp.route('address-upload-form', methods=['GET'])
 def show_address_upload_form():
-    mobile = request.args.get('mobile')
-    application_number = request.args.get('application_number')
-
-    if not mobile:
-        return "Mobile number is required", 400
-
-    return render_template(
-        'address_details.html',
-        mobile=mobile,
-        application_number=application_number
-    )
+    return render_template('address_details.html')

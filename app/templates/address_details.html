@@ -15,19 +15,6 @@
       <div id="message"></div>
       <form id="address-form" enctype="multipart/form-data">
         <div class="mb-3">
-          <label for="application_number" class="form-label"
-            >Application Number</label
-          >
-          <input
-            type="text"
-            class="form-control"
-            id="application_number"
-            name="application_number"
-            value="{{ application_number }}"
-            readonly
-          />
-        </div>
-        <div class="mb-3">
           <label for="address_line" class="form-label">Address Line</label>
           <input
             type="text"
@@ -95,7 +82,18 @@
         e.preventDefault();
 
         const formData = new FormData(form);
-        const applicationNumber = formData.get("application_number");
+
+        // ✅ Get application_number from localStorage and append to FormData
+        const applicationNumber = localStorage.getItem("application_number");
+        if (!applicationNumber) {
+          messageDiv.innerHTML = `
+        <div class="alert alert-danger" role="alert">
+          Application number not found in localStorage.
+        </div>`;
+          return;
+        }
+
+        formData.append("application_number", applicationNumber);
 
         try {
           const response = await fetch("/address/upload", {
@@ -107,34 +105,28 @@
 
           if (response.ok && result.status === 201) {
             messageDiv.innerHTML = `
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-              ${result.message || "Address uploaded successfully."}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          `;
+          <div class="alert alert-success alert-dismissible fade show" role="alert">
+            ${result.message || "Address uploaded successfully."}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>`;
 
-            // Redirect after 1.5 seconds
-            // Redirect to /live-capture with query parameters
-
-            const applicationNumber = encodeURIComponent(
-              document.getElementById("application_number").value
-            );
-            window.location.href = `/live-capture/?application_number=${applicationNumber}`;
+            // Redirect to /live-capture
+            window.location.href = `/live-capture/?application_number=${encodeURIComponent(
+              applicationNumber
+            )}`;
           } else {
             messageDiv.innerHTML = `
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-              ${result.error || "Failed to upload address."}
-              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-          `;
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            ${result.error || "Failed to upload address."}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>`;
           }
         } catch (error) {
           messageDiv.innerHTML = `
-          <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            Error: ${error.message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-        `;
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          Error: ${error.message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>`;
         }
       });
     </script>

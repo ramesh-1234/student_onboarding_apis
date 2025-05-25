@@ -37,12 +37,16 @@
         input.value = applicationNumber;
         input.readOnly = true;
       }
+
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
       let drawing = false;
 
       canvas.addEventListener("mousedown", () => (drawing = true));
-      canvas.addEventListener("mouseup", () => (drawing = false));
+      canvas.addEventListener("mouseup", () => {
+        drawing = false;
+        ctx.beginPath();
+      });
       canvas.addEventListener("mousemove", draw);
 
       function draw(e) {
@@ -61,13 +65,25 @@
         ctx.beginPath();
       }
 
+      function isCanvasBlank(canvas) {
+        const blank = document.createElement("canvas");
+        blank.width = canvas.width;
+        blank.height = canvas.height;
+        return canvas.toDataURL() === blank.toDataURL();
+      }
+
       document
         .getElementById("uploadForm")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
+
+          if (isCanvasBlank(canvas)) {
+            alert("Please provide a signature before submitting.");
+            return;
+          }
+
           const application_number =
             document.getElementById("application_number").value;
-
           const blob = await new Promise((resolve) => canvas.toBlob(resolve));
           const formData = new FormData();
           formData.append("application_number", application_number);

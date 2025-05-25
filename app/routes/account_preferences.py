@@ -15,15 +15,15 @@ ALLOWED_CARD_TYPES = {'Classic', 'Gold', 'Platinum'}
 @account_bp.route('/account-preferences', methods=['POST'])
 def save_account_preferences():
     data = request.get_json()
-    mobile = data.get('mobile')
+    application_number = data.get('application_number')
     account_type = data.get('account_type')
     profession = data.get('profession')
     enable_online_banking = data.get('enable_online_banking', False)
     request_debit_card = data.get('request_debit_card', False)
     card_type = data.get('card_type')
 
-    if not mobile:
-        return jsonify({'status': 400, 'message': 'Mobile number is required'}), 400
+    if not application_number:
+        return jsonify({'status': 400, 'message': 'Application number is required'}), 400
 
     if account_type not in ALLOWED_ACCOUNT_TYPES:
         return jsonify({'status': 400, 'message': 'Invalid account type'}), 400
@@ -34,17 +34,17 @@ def save_account_preferences():
     if card_type and card_type not in ALLOWED_CARD_TYPES:
         return jsonify({'status': 400, 'message': 'Invalid card type'}), 400
 
-    # Get mobile and application
-    mobile_entry = Mobile.query.filter_by(mobile=mobile).first()
-    if not mobile_entry:
-        return jsonify({'status': 404, 'message': 'Mobile number not found'}), 404
-
+    # Get application and mobile
     application = Application.query.filter_by(
-        mobile_id=mobile_entry.id).first()
+        application_number=application_number).first()
     if not application:
-        return jsonify({'status': 404, 'message': 'No application found for this mobile'}), 404
+        return jsonify({'status': 404, 'message': 'Application not found'}), 404
 
-    # Check if preferences already exist, then update
+    mobile_entry = Mobile.query.get(application.mobile_id)
+    if not mobile_entry:
+        return jsonify({'status': 404, 'message': 'Mobile record not found'}), 404
+
+    # Check if preferences already exist
     preferences = AccountPreferences.query.filter_by(
         mobile_id=mobile_entry.id).first()
     if preferences:
@@ -177,16 +177,23 @@ def delete_preferences():
     })
 
 
+# @account_bp.route('/account-preferences-form', methods=['GET'])
+# def show_account_preferences_form():
+#     mobile = request.args.get('mobile')
+#     application_number = request.args.get('application_number')
+
+#     if not mobile:
+#         return "Mobile number is required", 400
+
+#     return render_template(
+#         'account_preferences.html',
+#         mobile=mobile,
+#         application_number=application_number
+#     )
+
 @account_bp.route('/account-preferences-form', methods=['GET'])
 def show_account_preferences_form():
-    mobile = request.args.get('mobile')
-    application_number = request.args.get('application_number')
-
-    if not mobile:
-        return "Mobile number is required", 400
-
     return render_template(
         'account_preferences.html',
-        mobile=mobile,
-        application_number=application_number
+
     )

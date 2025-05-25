@@ -8,38 +8,54 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <style>
+      .barcode-container {
+        display: flex;
+        justify-content: flex-end; /* Align items to the right */
+        align-items: center;
+        margin-bottom: 1rem;
+        gap: 1rem; /* space between barcode and left svg (if needed) */
+      }
+
+      /* Hide barcode-left if you don't want it visible */
+      #barcode-left {
+        display: none;
+      }
+
+      .barcode-right-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      #barcode-text {
+        margin-top: 0.25rem; /* spacing below barcode */
+        font-weight: 700;
+      }
+    </style>
   </head>
   <body class="bg-light">
-    <div class="container mt-5">
+    <div class="container mt-4">
+      <div class="barcode-container">
+        <svg id="barcode-left"></svg>
+        <!-- Hidden by CSS -->
+        <div class="barcode-right-wrapper">
+          <svg id="barcode-right"></svg>
+          <span id="barcode-text"></span>
+        </div>
+      </div>
+
       <div class="card shadow-sm">
         <div class="card-header bg-primary text-white">
           <h4 class="mb-0">Account Preferences</h4>
         </div>
         <div class="card-body">
           <form id="preferences-form">
-            <div class="mb-3">
-              <label for="mobile" class="form-label">Mobile Number</label>
-              <input
-                type="text"
-                id="mobile"
-                name="mobile"
-                class="form-control"
-                readonly
-              />
-            </div>
-
-            <div class="mb-3">
-              <label for="application_number" class="form-label"
-                >Application Number</label
-              >
-              <input
-                type="text"
-                id="application_number"
-                name="application_number"
-                class="form-control"
-                readonly
-              />
-            </div>
+            <input
+              type="hidden"
+              id="application_number"
+              name="application_number"
+            />
 
             <div class="mb-3">
               <label for="account_type" class="form-label">Account Type</label>
@@ -155,56 +171,80 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
     <script>
-      const params = new URLSearchParams(window.location.search);
-      const mobile = params.get("mobile");
-      const application_number = params.get("application_number");
+      const application_number = localStorage.getItem("application_number");
 
-      document.getElementById("mobile").value = mobile || "";
-      document.getElementById("application_number").value =
-        application_number || "";
-
-      document
-        .getElementById("preferences-form")
-        .addEventListener("submit", async function (e) {
-          e.preventDefault();
-          try {
-            const payload = {
-              mobile: mobile,
-              account_type: document.getElementById("account_type").value,
-              profession: document.getElementById("profession").value,
-              enable_online_banking: document.getElementById(
-                "enable_online_banking"
-              ).checked,
-              request_debit_card:
-                document.getElementById("request_debit_card").checked,
-              card_type: document.getElementById("card_type").value,
-            };
-
-            const res = await axios.post("/account-preferences", payload);
-            if (res.status === 200) {
-              const successModal = new bootstrap.Modal(
-                document.getElementById("successModal")
-              );
-              successModal.show();
-
-              // Redirect to Aadhaar verification page after short delay
-              setTimeout(() => {
-                window.location.href = `/aadhaar-verification-form?mobile=${encodeURIComponent(
-                  mobile
-                )}&application_number=${encodeURIComponent(
-                  application_number
-                )}`;
-              }, 1500);
-            }
-          } catch (err) {
-            const message =
-              err.response?.data?.message || "Failed to submit preferences.";
-            document.getElementById("message").innerHTML = `
-          <div class="alert alert-danger mt-3">${message}</div>
-        `;
-          }
+      if (!application_number) {
+        alert("Invalid access. Please start from the verification page.");
+        window.location.href = "/verify-mobile-twilio";
+      } else {
+        // Generate barcode
+        JsBarcode("#barcode-right", application_number, {
+          format: "CODE128",
+          lineColor: "#000",
+          width: 2,
+          height: 50,
+          displayValue: false,
         });
+
+        // Set barcode text
+        document.getElementById("barcode-text").textContent =
+          application_number;
+
+        // Set hidden field
+        document.getElementById("application_number").value =
+          application_number;
+
+        // Submit handler
+        document
+          .getElementById("preferences-form")
+          .addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            try {
+              const payload = {
+                application_number,
+                account_type: document.getElementById("account_type").value,
+                profession: document.getElementById("profession").value,
+                enable_online_banking: document.getElementById(
+                  "enable_online_banking"
+                ).checked,
+                request_debit_card:
+                  document.getElementById("request_debit_card").checked,
+                card_type: document.getElementById("card_type").value,
+              };
+
+              const res = await axios.post("/account-preferences", payload, {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              });
+
+              if (res.status === 200) {
+                const successModal = new bootstrap.Modal(
+                  document.getElementById("successModal")
+                );
+                successModal.show();
+
+                // Navigate only when OK button clicked
+                const okButton = document.querySelector(
+                  "#successModal .btn-success"
+                );
+                okButton.addEventListener("click", () => {
+                  window.location.href = "/aadhaar/send-otp";
+                });
+              }
+            } catch (err) {
+              const message =
+                err.response?.data?.message || "Failed to submit preferences.";
+              document.getElementById("message").innerHTML = `
+            <div class="alert alert-danger mt-3">${message}</div>
+          `;
+            }
+          });
+      }
     </script>
   </body>
 </html>
