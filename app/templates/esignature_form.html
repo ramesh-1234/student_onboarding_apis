@@ -47,38 +47,11 @@
           />
         </div>
 
-        <!-- Signature Upload -->
-        <div class="mb-3">
-          <label for="signImage" class="form-label"
-            >Upload Signature Image <span class="text-danger">*</span></label
-          >
-          <input
-            type="file"
-            class="form-control"
-            id="signImage"
-            name="sign_image"
-            accept="image/*"
-          />
-          <img
-            id="signPreview"
-            src=""
-            alt="Signature Preview"
-            class="img-fluid rounded mt-3"
-            style="display: none; max-height: 100px; object-fit: contain"
-          />
-        </div>
-
-        <!-- Toggle Canvas Signature -->
-        <div class="form-check form-switch mb-3">
-          <input class="form-check-input" type="checkbox" id="toggleCanvas" />
-          <label class="form-check-label" for="toggleCanvas">
-            Use Canvas Signature Instead
-          </label>
-        </div>
-
         <!-- Canvas Signature -->
-        <div class="mb-3" id="canvasContainer" style="display: none">
-          <label for="canvas" class="form-label">Draw your e-signature</label>
+        <div class="mb-3">
+          <label for="canvas" class="form-label"
+            >Draw your e-signature <span class="text-danger">*</span></label
+          >
           <canvas id="canvas" width="400" height="120" class="mb-2"></canvas>
           <button
             type="button"
@@ -92,8 +65,6 @@
         <button type="submit" class="btn btn-primary w-100">Submit</button>
       </form>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
       window.onload = function () {
@@ -140,10 +111,6 @@
 
         const panInput = document.getElementById("panImage");
         const panPreview = document.getElementById("panPreview");
-        const signInput = document.getElementById("signImage");
-        const signPreview = document.getElementById("signPreview");
-        const toggleCanvas = document.getElementById("toggleCanvas");
-        const canvasContainer = document.getElementById("canvasContainer");
 
         panInput.addEventListener("change", function () {
           const file = this.files[0];
@@ -160,27 +127,6 @@
           }
         });
 
-        signInput.addEventListener("change", function () {
-          const file = this.files[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-              signPreview.src = e.target.result;
-              signPreview.style.display = "block";
-            };
-            reader.readAsDataURL(file);
-          } else {
-            signPreview.src = "";
-            signPreview.style.display = "none";
-          }
-        });
-
-        toggleCanvas.addEventListener("change", () => {
-          canvasContainer.style.display = toggleCanvas.checked
-            ? "block"
-            : "none";
-        });
-
         document
           .getElementById("uploadForm")
           .addEventListener("submit", async (e) => {
@@ -191,15 +137,7 @@
               return;
             }
 
-            const useCanvas = toggleCanvas.checked;
-            const hasSignatureFile = signInput.files.length > 0;
-
-            if (!useCanvas && !hasSignatureFile) {
-              alert("Please upload a signature image or use the canvas.");
-              return;
-            }
-
-            if (useCanvas && isCanvasBlank(canvas)) {
+            if (isCanvasBlank(canvas)) {
               alert("Canvas is blank. Please draw your signature.");
               return;
             }
@@ -208,14 +146,10 @@
             formData.append("application_number", applicationNumber);
             formData.append("pan_image", panInput.files[0]);
 
-            if (useCanvas) {
-              const blob = await new Promise((resolve) =>
-                canvas.toBlob(resolve, "image/png")
-              );
-              formData.append("esign_canvas", blob, "signature_canvas.png");
-            } else if (hasSignatureFile) {
-              formData.append("esign_image", signInput.files[0]);
-            }
+            const blob = await new Promise((resolve) =>
+              canvas.toBlob(resolve, "image/png")
+            );
+            formData.append("esign_canvas", blob, "signature_canvas.png");
 
             try {
               const response = await fetch("/esignature/upload", {

@@ -334,7 +334,6 @@ class ESignatureUpload(db.Model):
     image_path = db.Column(db.String(255), nullable=True)
     # pan card image path (optional)
     pan_image_path = db.Column(db.String(255), nullable=True)
-    esign_image_path = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     modified_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

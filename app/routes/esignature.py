@@ -13,19 +13,111 @@ def esignature_form():
     return render_template('esignature_form.html')
 
 
+# @esignature_bp.route('/upload', methods=['POST'])
+# def upload_esignature():
+#     application_number = request.form.get('application_number')
+#     # optional if esign_image is used
+#     esign_canvas = request.files.get('esign_canvas')
+#     # optional if esign_canvas is used
+#     esign_image = request.files.get('esign_image')
+#     pan_image = request.files.get('pan_image')        # required
+
+#     if not application_number or not pan_image or not (esign_canvas or esign_image):
+#         return jsonify({
+#             'status': 400,
+#             'error': 'Application number, PAN image, and one e-signature (image or canvas) are required.'
+#         }), 400
+
+#     application = Application.query.filter_by(
+#         application_number=application_number).first()
+#     if not application:
+#         return jsonify({'status': 404, 'error': 'Application not found'}), 404
+
+#     timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+
+#     # --- Save e-signature ---
+#     esign_dir = os.path.join('uploads', 'esignature')
+#     os.makedirs(esign_dir, exist_ok=True)
+
+#     if esign_canvas:
+#         esign_file = esign_canvas
+#         esign_filename = f"{application_number}_canvas_{timestamp}.png"
+#     else:
+#         esign_file = esign_image
+#         esign_filename = f"{application_number}_upload_{timestamp}.jpg"
+
+#     esign_path = os.path.join(esign_dir, secure_filename(esign_filename))
+#     esign_file.save(esign_path)
+
+#     # --- Save PAN card ---
+#     pan_dir = os.path.join('uploads', 'pan')
+#     os.makedirs(pan_dir, exist_ok=True)
+#     pan_filename = f"{application_number}_pan_{timestamp}.jpg"
+#     pan_path = os.path.join(pan_dir, secure_filename(pan_filename))
+#     pan_image.save(pan_path)
+
+#     # --- Save to DB ---
+#     signature = ESignatureUpload.query.filter_by(
+#         application_id=application.id).first()
+
+#     if signature:
+#         # Remove old files
+#         if signature.image_path and os.path.exists(signature.image_path):
+#             try:
+#                 os.remove(signature.image_path)
+#             except Exception as e:
+#                 current_app.logger.warning(
+#                     f"Failed to remove old e-signature: {e}")
+
+#         if signature.pan_image_path and os.path.exists(signature.pan_image_path):
+#             try:
+#                 os.remove(signature.pan_image_path)
+#             except Exception as e:
+#                 current_app.logger.warning(
+#                     f"Failed to remove old PAN image: {e}")
+
+#         # Update paths
+#         signature.image_path = esign_path
+#         signature.pan_image_path = pan_path
+#         signature.modified_at = datetime.utcnow()
+#     else:
+#         signature = ESignatureUpload(
+#             application_id=application.id,
+#             image_path=esign_path,
+#             pan_image_path=pan_path,
+#             esign_image_path=esign_path,
+#             created_at=datetime.utcnow(),
+#             modified_at=datetime.utcnow()
+#         )
+#         db.session.add(signature)
+
+#     db.session.commit()
+
+#     return jsonify({
+#         'status': 201,
+#         'message': 'E-signature and PAN card uploaded successfully',
+#         'data': {
+#             'application_number': application.application_number,
+#             'image_path': signature.image_path,
+#             'pan_image_path': signature.pan_image_path,
+#             'public_url_esign': f"http://localhost:8000/uploads/esignature/{os.path.basename(signature.image_path)}",
+#             'public_url_pan': f"http://localhost:8000/uploads/pan/{os.path.basename(signature.pan_image_path)}",
+#             'created_at': signature.created_at.isoformat(),
+#             'modified_at': signature.modified_at.isoformat()
+#         }
+#     })
+
+
 @esignature_bp.route('/upload', methods=['POST'])
 def upload_esignature():
     application_number = request.form.get('application_number')
-    # optional if esign_image is used
     esign_canvas = request.files.get('esign_canvas')
-    # optional if esign_canvas is used
-    esign_image = request.files.get('esign_image')
-    pan_image = request.files.get('pan_image')        # required
+    pan_image = request.files.get('pan_image')  # required
 
-    if not application_number or not pan_image or not (esign_canvas or esign_image):
+    if not application_number or not pan_image or not esign_canvas:
         return jsonify({
             'status': 400,
-            'error': 'Application number, PAN image, and one e-signature (image or canvas) are required.'
+            'error': 'Application number, PAN image, and canvas signature are required.'
         }), 400
 
     application = Application.query.filter_by(
@@ -35,31 +127,23 @@ def upload_esignature():
 
     timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
 
-    # --- Save e-signature ---
+    # Save e-signature
     esign_dir = os.path.join('uploads', 'esignature')
     os.makedirs(esign_dir, exist_ok=True)
-
-    if esign_canvas:
-        esign_file = esign_canvas
-        esign_filename = f"{application_number}_canvas_{timestamp}.png"
-    else:
-        esign_file = esign_image
-        esign_filename = f"{application_number}_upload_{timestamp}.jpg"
-
+    esign_filename = f"{application_number}_canvas_{timestamp}.png"
     esign_path = os.path.join(esign_dir, secure_filename(esign_filename))
-    esign_file.save(esign_path)
+    esign_canvas.save(esign_path)
 
-    # --- Save PAN card ---
+    # Save PAN card
     pan_dir = os.path.join('uploads', 'pan')
     os.makedirs(pan_dir, exist_ok=True)
     pan_filename = f"{application_number}_pan_{timestamp}.jpg"
     pan_path = os.path.join(pan_dir, secure_filename(pan_filename))
     pan_image.save(pan_path)
 
-    # --- Save to DB ---
+    # Save to DB
     signature = ESignatureUpload.query.filter_by(
         application_id=application.id).first()
-
     if signature:
         # Remove old files
         if signature.image_path and os.path.exists(signature.image_path):
