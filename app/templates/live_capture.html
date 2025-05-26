@@ -26,14 +26,6 @@
   <body>
     <h2>Live Webcam Capture</h2>
 
-    <input
-      type="text"
-      id="applicationNumberInput"
-      value="{{ application_number }}"
-      readonly
-      placeholder="Application Number"
-    />
-
     <video id="webcam" autoplay playsinline width="320" height="240"></video>
     <img
       id="preview"
@@ -102,7 +94,7 @@
 
       uploadBtn.onclick = async () => {
         const base64Image = preview.src;
-        const applicationNumber = applicationNumberInput.value.trim();
+        const applicationNumber = localStorage.getItem("application_number");
 
         if (!applicationNumber) {
           alert("Please enter Application Number.");
@@ -127,11 +119,7 @@
               "Upload successful!\nApplication Number: " + applicationNumber
             );
             // After alert OK is clicked, navigate to /esignature
-            window.location.href = `/esignature?application_number=${encodeURIComponent(
-              applicationNumber
-            )}`;
-            applicationNumberInput.value = "";
-            retakeBtn.click();
+            window.location.href = `/esignature`;
           } else {
             alert("Upload failed: " + (result.error || "Unknown error"));
           }

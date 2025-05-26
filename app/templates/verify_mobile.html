@@ -19,19 +19,18 @@
               <h4 class="mb-4 text-center">Verify Mobile</h4>
 
               <form id="verification-form">
-                <div class="mb-3 d-flex align-items-end gap-2">
-                  <div class="flex-grow-1">
-                    <label for="mobile" class="form-label">Mobile Number</label>
+                <div class="mb-3">
+                  <label for="mobile" class="form-label">Mobile Number</label>
+                  <div class="input-group">
                     <input
                       type="text"
                       id="mobile"
                       name="mobile"
                       class="form-control"
                       placeholder="Enter 10-digit mobile number"
+                      maxlength="10"
                       required
                     />
-                  </div>
-                  <div>
                     <button
                       type="button"
                       class="btn btn-secondary"
@@ -50,12 +49,19 @@
                     name="otp"
                     class="form-control"
                     placeholder="Enter the OTP"
+                    maxlength="6"
+                    disabled
                     required
                   />
                 </div>
 
                 <div class="d-grid">
-                  <button type="submit" class="btn btn-primary">
+                  <button
+                    type="submit"
+                    id="verify-otp-btn"
+                    class="btn btn-primary"
+                    disabled
+                  >
                     Verify OTP
                   </button>
                 </div>
@@ -69,59 +75,120 @@
     </div>
 
     <script>
-      // Send OTP
-      document
-        .getElementById("send-otp-btn")
-        .addEventListener("click", async () => {
-          const mobile = document.getElementById("mobile").value;
-          if (!mobile) return alert("Please enter your mobile number");
-          try {
-            await axios.post("/verify-mobile-twilio", { mobile });
-            document.getElementById("message").innerHTML = `
-            <div class='alert alert-info'>OTP sent successfully to ${mobile}</div>
-          `;
-          } catch (err) {
-            document.getElementById("message").innerHTML = `
-            <div class='alert alert-danger'>${
-              err.response?.data?.message || "Failed to send OTP"
-            }</div>
-          `;
-          }
-        });
+      const USE_TWILIO = false;
 
-      // Verify OTP
+      const sendOtpUrl = USE_TWILIO
+        ? "/verify-mobile-twilio"
+        : "/verify-mobile";
+      const verifyOtpUrl = USE_TWILIO ? "/verify-otp-twilio" : "/verify-otp";
+
+      const mobileInput = document.getElementById("mobile");
+      const otpInput = document.getElementById("otp");
+      const sendBtn = document.getElementById("send-otp-btn");
+      const verifyBtn = document.getElementById("verify-otp-btn");
+      const messageBox = document.getElementById("message");
+
+      sendBtn.disabled = true;
+      otpInput.disabled = true;
+      verifyBtn.disabled = true;
+
+      function showMessage(type, text) {
+        messageBox.innerHTML = `<div class="alert alert-${type}">${text}</div>`;
+      }
+
+      mobileInput.addEventListener("input", () => {
+        mobileInput.value = mobileInput.value.replace(/\D/g, "").slice(0, 10);
+        sendBtn.disabled = mobileInput.value.length !== 10;
+      });
+
+      sendBtn.addEventListener("click", async () => {
+        const mobile = mobileInput.value.trim();
+        if (mobile.length !== 10) return;
+
+        sendBtn.disabled = true;
+        const originalSendText = sendBtn.textContent;
+        sendBtn.innerHTML = `
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...
+        `;
+
+        try {
+          const response = await axios.post(sendOtpUrl, { mobile });
+          const result = response.data;
+
+          if (result.data?.application_number) {
+            const proceed = confirm(
+              `Customer already exists.\nApplication Number: ${result.data.application_number}\nDo you want to continue to the next step?`
+            );
+            if (proceed) {
+              localStorage.setItem(
+                "application_number",
+                result.data.application_number
+              );
+              window.location.href = "/aadhaar/send-otp";
+              return;
+            } else {
+              sendBtn.disabled = false;
+              sendBtn.textContent = originalSendText;
+              return;
+            }
+          }
+
+          showMessage("info", `OTP sent successfully to ${mobile}`);
+          otpInput.disabled = false;
+          verifyBtn.disabled = false;
+          mobileInput.readOnly = true;
+          sendBtn.disabled = true;
+        } catch (err) {
+          showMessage(
+            "danger",
+            err.response?.data?.message || "Failed to send OTP"
+          );
+          sendBtn.disabled = false;
+        } finally {
+          sendBtn.textContent = originalSendText;
+        }
+      });
 
       document
         .getElementById("verification-form")
         .addEventListener("submit", async (e) => {
           e.preventDefault();
-          const mobile = document.getElementById("mobile").value;
-          const otp = document.getElementById("otp").value;
+
+          const mobile = mobileInput.value.trim();
+          const otp = otpInput.value.trim();
+          if (!mobile || !otp) {
+            return alert("Please enter both mobile number and OTP");
+          }
+
+          verifyBtn.disabled = true;
+          const originalVerifyText = verifyBtn.textContent;
+          verifyBtn.innerHTML = `
+          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying...
+        `;
 
           try {
-            const response = await axios.post("/verify-otp", { mobile, otp });
+            const response = await axios.post(verifyOtpUrl, { mobile, otp });
+            const result = response.data;
+            const applicationNumber = result?.data?.application_number;
 
-            const applicationNumber = response.data?.data?.application_number;
-
-            if (applicationNumber) {
-              localStorage.setItem("application_number", applicationNumber);
-            } else {
-              throw new Error("Application number not found in response.");
+            if (!applicationNumber) {
+              throw new Error("Application number not returned from server");
             }
 
-            document.getElementById("message").innerHTML = `
-        <div class='alert alert-success'>OTP verified successfully. Redirecting...</div>
-      `;
+            localStorage.setItem("application_number", applicationNumber);
+            showMessage("success", "OTP verified successfully. Redirecting...");
 
             setTimeout(() => {
               window.location.href = "/account-preferences-form";
             }, 1500);
           } catch (err) {
-            document.getElementById("message").innerHTML = `
-        <div class='alert alert-danger'>${
-          err.response?.data?.message || "Verification failed"
-        }</div>
-      `;
+            showMessage(
+              "danger",
+              err.response?.data?.message || "OTP verification failed"
+            );
+          } finally {
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = originalVerifyText;
           }
         });
     </script>

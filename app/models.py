@@ -85,12 +85,19 @@ class Application(db.Model):
     mobile_id = db.Column(
         db.Integer, db.ForeignKey('mobile.id'), nullable=True)
     email_id = db.Column(db.Integer, db.ForeignKey('email.id'), nullable=True)
+
+    aadhaar_id = db.Column(
+        db.Integer, db.ForeignKey('aadhaar_sandbox_details.id'), nullable=True
+    )
     application_number = db.Column(db.String(10), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, default=db.func.now())
-    # updated default to 'pending'
     status = db.Column(db.String(50), default='pending')
 
     email = db.relationship('Email', backref='applications', lazy=True)
+
+    aadhaar = db.relationship(
+        'AadhaarSandboxDetails', back_populates='applications', lazy=True
+    )
 
 
 class AccountPreferences(db.Model):
@@ -198,18 +205,43 @@ class AadhaarSandboxDetails(db.Model):
     __tablename__ = 'aadhaar_sandbox_details'
 
     id = db.Column(db.Integer, primary_key=True)
+
     aadhaar_number = db.Column(db.String(12), unique=True, nullable=False)
+    reference_id = db.Column(db.BigInteger, unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=True)
     gender = db.Column(db.String(10), nullable=True)
     dob = db.Column(db.String(20), nullable=True)
-    address = db.Column(db.String(255), nullable=True)
+    year_of_birth = db.Column(db.Integer, nullable=True)
+    care_of = db.Column(db.String(255), nullable=True)
+    full_address = db.Column(db.Text, nullable=True)
+    house = db.Column(db.String(100), nullable=True)
+    street = db.Column(db.String(255), nullable=True)
+    landmark = db.Column(db.String(255), nullable=True)
+    subdistrict = db.Column(db.String(100), nullable=True)
+    vtc = db.Column(db.String(100), nullable=True)
+    post_office = db.Column(db.String(100), nullable=True)
+    district = db.Column(db.String(100), nullable=True)
     city = db.Column(db.String(100), nullable=True)
     state = db.Column(db.String(100), nullable=True)
     country = db.Column(db.String(100), nullable=True)
-    created_at = db.Column(db.DateTime, default=db.func.now())
+    pincode = db.Column(db.String(10), nullable=True)
+    email_hash = db.Column(db.String(255), nullable=True)
+    mobile_hash = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(50), nullable=True)
+    message = db.Column(db.String(255), nullable=True)
+    share_code = db.Column(db.String(10), nullable=True)
+    photo_path = db.Column(db.String(255), nullable=True)
 
-    otps = db.relationship('AadhaarOTPSandboxDetails',
-                           backref='aadhaar', lazy=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    otp_details = db.relationship(
+        'AadhaarOTPSandboxDetails', back_populates='sandbox_details'
+    )
+
+    applications = db.relationship(
+        'Application', back_populates='aadhaar', cascade="all, delete-orphan"
+    )
 
 
 class AadhaarOTPSandboxDetails(db.Model):
@@ -217,13 +249,21 @@ class AadhaarOTPSandboxDetails(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     aadhaar_id = db.Column(db.Integer, db.ForeignKey(
-        'aadhaar_sandbox_details.id'), nullable=False)
-    txn_id = db.Column(db.String(50), nullable=True)
-    client_id = db.Column(db.String(50), nullable=True)
-    otp_code = db.Column(db.String(10), nullable=True)  # <-- New column added
-    otp_sent = db.Column(db.Boolean, default=True)
-    raw_response = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=db.func.now())
+        'aadhaar_sandbox_details.id'))
+    transaction_id = db.Column(db.String(255), nullable=True)
+    client_id = db.Column(db.String(255), nullable=True)
+    otp_sent = db.Column(db.Boolean, default=False)
+    message = db.Column(db.String(255), nullable=True)
+    reference_id = db.Column(db.String(255), nullable=True)
+    entity = db.Column(db.String(255), nullable=True)
+    code = db.Column(db.Integer, nullable=True)
+    timestamp = db.Column(db.DateTime, nullable=True)
+    test_otp = db.Column(db.String(10), nullable=True)  # For sandbox/testing
+    verified = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    sandbox_details = db.relationship(
+        'AadhaarSandboxDetails', back_populates='otp_details')
 
 
 class LiveWebcamPhoto(db.Model):
@@ -249,16 +289,40 @@ class AddressUpload(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey(
         'application.id'), nullable=False)
-    address_line = db.Column(db.String(255), nullable=False)
-    city = db.Column(db.String(100), nullable=False)
-    state = db.Column(db.String(100), nullable=False)
-    pincode = db.Column(db.String(10), nullable=False)
-    image_path = db.Column(db.String(255), nullable=False)
+    address_line = db.Column(db.String(255), nullable=True)
+    city = db.Column(db.String(100), nullable=True)
+    state = db.Column(db.String(100), nullable=True)
+    pincode = db.Column(db.String(10), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     modified_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     application = db.relationship('Application', backref='address_uploads')
+    images = db.relationship(
+        'AddressImage', backref='address_upload', cascade="all, delete-orphan")
 
+
+class AddressImage(db.Model):
+    __tablename__ = 'address_image'
+
+    id = db.Column(db.Integer, primary_key=True)
+    address_upload_id = db.Column(db.Integer, db.ForeignKey(
+        'address_upload.id'), nullable=False)
+    # Only one image path per row
+    image_path = db.Column(db.String(255), nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# class ESignatureUpload(db.Model):
+#     __tablename__ = 'esignature_upload'
+
+#     id = db.Column(db.Integer, primary_key=True)
+#     application_id = db.Column(db.Integer, db.ForeignKey(
+#         'application.id'), nullable=False)
+#     image_path = db.Column(db.String(255), nullable=False)
+#     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+#     modified_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+#     application = db.relationship('Application', backref='esignature_uploads')
 
 class ESignatureUpload(db.Model):
     __tablename__ = 'esignature_upload'
@@ -266,9 +330,14 @@ class ESignatureUpload(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey(
         'application.id'), nullable=False)
-    image_path = db.Column(db.String(255), nullable=False)
+    # e-signature image path
+    image_path = db.Column(db.String(255), nullable=True)
+    # pan card image path (optional)
+    pan_image_path = db.Column(db.String(255), nullable=True)
+    esign_image_path = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    modified_at = db.Column(db.DateTime, default=datetime.utcnow)
+    modified_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     application = db.relationship('Application', backref='esignature_uploads')
 
@@ -285,3 +354,6 @@ class PanCard(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
 
     email = db.relationship("Email", backref=db.backref("pancards", lazy=True))
+
+
+0

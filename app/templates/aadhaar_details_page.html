@@ -60,23 +60,42 @@
     <!-- JS scripts -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
+      // Toggle this flag to switch between sandbox and production
+      const sandbox = true;
+
+      const sendOtpUrl = sandbox
+        ? "/aadhaar/test-send-otp"
+        : "/aadhaar/send-otp";
+
+      const verifyOtpUrl = sandbox
+        ? "/aadhaar/test-verify-otp"
+        : "/aadhaar/verify-otp";
+
       document
         .getElementById("send-otp-btn")
         .addEventListener("click", async () => {
           const aadhaar = document.getElementById("aadhaar_number").value;
           try {
-            const res = await axios.post("/aadhaar/send-otp", {
+            const res = await axios.post(sendOtpUrl, {
               aadhaar_number: aadhaar,
             });
+
+            let extraMessage = "";
+            if (sandbox && res.data.test_otp) {
+              extraMessage = `<br><strong>Test OTP:</strong> ${res.data.test_otp}`;
+            }
+
             document.getElementById("message").innerHTML = `
-        <div class="alert alert-success">OTP sent successfully to your registered mobile.</div>
-      `;
+          <div class="alert alert-success">
+            OTP sent successfully to your registered mobile.${extraMessage}
+          </div>
+        `;
           } catch (err) {
             document.getElementById("message").innerHTML = `
-        <div class="alert alert-danger">
-          ${err.response?.data?.message || "Failed to send OTP."}
-        </div>
-      `;
+          <div class="alert alert-danger">
+            ${err.response?.data?.message || "Failed to send OTP."}
+          </div>
+        `;
           }
         });
 
@@ -88,29 +107,32 @@
           const otp = document.getElementById("otp").value;
 
           try {
-            const res = await axios.post("/aadhaar/match-otp", {
+            const res = await axios.post(verifyOtpUrl, {
               aadhaar_number: aadhaar,
               otp: otp,
             });
-            if (res.status === 200) {
-              const applicationNumber =
-                localStorage.getItem("application_number");
 
-              console.log("Application_Number", applicationNumber);
-              if (!applicationNumber) {
-                alert(
-                  "Application number missing. Please start from account preferences."
-                );
-                return;
-              }
-              window.location.href = "/address/address-upload-form";
+            if (res.status === 200) {
+              alert("Verified successfully");
+              window.location.href = "/account-preferences-form";
             }
           } catch (err) {
-            document.getElementById("message").innerHTML = `
-        <div class="alert alert-danger">
-          ${err.response?.data?.message || "OTP verification failed."}
-        </div>
-      `;
+            const message =
+              err.response?.data?.message || "OTP verification failed.";
+
+            if (
+              err.response?.status === 400 &&
+              message.toLowerCase().includes("insufficient credits")
+            ) {
+              alert("you have insufficient credits still allow to go next");
+              window.location.href = "/account-preferences-form";
+            } else {
+              document.getElementById("message").innerHTML = `
+          <div class="alert alert-danger">
+            ${message}
+          </div>
+        `;
+            }
           }
         });
     </script>

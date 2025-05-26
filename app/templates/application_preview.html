@@ -73,10 +73,6 @@
         data.address.state }} - {{ data.address.pincode }}
       </p>
 
-      <img
-        src="{{ url_for('uploaded_file', filename=data.address.image_path.replace('uploads/', '').replace('uploads\\', '').replace('\\', '/')) }}"
-        alt="Address Proof Image"
-      />
       {% else %}
       <p>No Address details found.</p>
       {% endif %}

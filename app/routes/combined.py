@@ -50,7 +50,6 @@ def combined_details():
             'city': address.city,
             'state': address.state,
             'pincode': address.pincode,
-            'image_path': address.image_path,
             'created_at': address.created_at.isoformat() if address else None,
             'modified_at': address.modified_at.isoformat() if address else None,
         } if address else None,

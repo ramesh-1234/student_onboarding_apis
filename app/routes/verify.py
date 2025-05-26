@@ -144,6 +144,64 @@ def verify_email_twilio():
 # TWilio API
 
 
+# @verify_bp.route('/verify-mobile-twilio', methods=['POST'])
+# def verify_mobile_twilio():
+#     data = request.get_json()
+#     mobile = data.get('mobile')
+#     channel = data.get('channel', 'sms').lower()  # default to SMS
+
+#     if not mobile or not is_mobile_valid(mobile):
+#         return jsonify({
+#             'status_code': 400,
+#             'message': 'Invalid mobile number'
+#         }), 400
+
+#     otp = str(generate_otp())
+#     logging.debug(f"Generated OTP: {otp}")
+
+#     # Get or create Mobile record
+#     mobile_entry = Mobile.query.filter_by(mobile=mobile).first()
+#     if not mobile_entry:
+#         mobile_entry = Mobile(mobile=mobile)
+#         db.session.add(mobile_entry)
+#         db.session.commit()
+
+#     # Create or update OTP record
+#     now = datetime.utcnow()
+#     expiry = now + timedelta(seconds=OTP_EXPIRY_SECONDS)
+#     otp_entry = MobileOTP.query.filter_by(mobile_id=mobile_entry.id).first()
+
+#     if otp_entry:
+#         otp_entry.otp = otp
+#         otp_entry.created_at = now
+#         otp_entry.expired_at = expiry
+#     else:
+#         otp_entry = MobileOTP(
+#             mobile_id=mobile_entry.id,
+#             otp=otp,
+#             created_at=now,
+#             expired_at=expiry
+#         )
+#         db.session.add(otp_entry)
+
+#     db.session.commit()
+
+#     # Send OTP via chosen channel
+#     if channel == "whatsapp":
+#         send_otp_via_whatsapp(mobile, otp)
+#     else:
+#         send_otp_via_sms(mobile, otp)
+
+#     return jsonify({
+#         'status': 200,
+#         'message': f'OTP sent via {channel}',
+#         'data': {
+#             'otp': otp,  # remove this in production!
+#             'created_at': otp_entry.created_at.isoformat()
+#         }
+#     }), 200
+
+
 @verify_bp.route('/verify-mobile-twilio', methods=['POST'])
 def verify_mobile_twilio():
     data = request.get_json()
@@ -165,6 +223,19 @@ def verify_mobile_twilio():
         mobile_entry = Mobile(mobile=mobile)
         db.session.add(mobile_entry)
         db.session.commit()
+
+    # ==== [EXISTING_APPLICATION_CHECK] ====
+    existing_app = Application.query.filter_by(mobile_id=mobile_entry.id).first()
+    if existing_app:
+        return jsonify({
+            'status': 200,
+            'message': 'Mobile already verified. Existing application found.',
+            'data': {
+                'application_number': existing_app.application_number,
+                'existing': True
+            }
+        }), 200
+    # ==== [/EXISTING_APPLICATION_CHECK] ====
 
     # Create or update OTP record
     now = datetime.utcnow()
@@ -196,10 +267,11 @@ def verify_mobile_twilio():
         'status': 200,
         'message': f'OTP sent via {channel}',
         'data': {
-            'otp': otp,  # remove this in production!
+            'otp': otp,  # ⚠️ Remove this in production!
             'created_at': otp_entry.created_at.isoformat()
         }
     }), 200
+
 
 
 @verify_bp.route('/verify-email', methods=['POST'])

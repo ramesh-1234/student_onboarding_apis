@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from app.extensions import db
-from app.models import Application, AddressUpload
+from app.models import AddressImage, Application, AddressUpload
 
 address_upload_bp = Blueprint(
     'address_upload', __name__, url_prefix='/address')
@@ -16,7 +16,7 @@ def upload_address():
     city = request.form.get('city')
     state = request.form.get('state')
     pincode = request.form.get('pincode')
-    image = request.files.get('image')
+    images = request.files.getlist('images')
 
     if not application_number:
         return jsonify({'status': 400, 'error': 'Application number is required'}), 400
@@ -26,35 +26,37 @@ def upload_address():
     if not application:
         return jsonify({'status': 404, 'error': 'Application not found'}), 404
 
-    if not address_line or not city or not state or not pincode or not image:
-        return jsonify({'status': 400, 'error': 'All address fields and image are required'}), 400
+    # if not address_line or not city or not state or not pincode:
+    #     return jsonify({'status': 400, 'error': 'All address fields are required'}), 400
 
-    # Save image
-    timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
-    filename = f"{application_number}_{timestamp}.jpg"
+    if not images or len(images) == 0:
+        return jsonify({'status': 400, 'error': 'At least one image is required'}), 400
+
+    if len(images) > 2:
+        return jsonify({'status': 400, 'error': 'Maximum 2 images allowed'}), 400
+
     save_dir = os.path.join('uploads', 'address_proof')
     os.makedirs(save_dir, exist_ok=True)
-    image_path = os.path.join(save_dir, secure_filename(filename))
-    image.save(image_path)
 
-    # Check if address already exists for application and override
+    # Check if address exists and update, else create new
     address = AddressUpload.query.filter_by(
         application_id=application.id).first()
     if address:
-        # Delete old image file if exists
-        old_image_path = address.image_path
-        if old_image_path and os.path.exists(old_image_path):
+        # Delete old images
+        for img in address.images:
             try:
-                os.remove(old_image_path)
+                if os.path.exists(img.image_path):
+                    os.remove(img.image_path)
             except Exception as e:
                 current_app.logger.warning(
-                    f"Failed to remove old address image: {old_image_path}, error: {e}")
+                    f"Failed to remove old address image: {img.image_path}, error: {e}")
+        # Clear old image entries
+        address.images.clear()
 
         address.address_line = address_line
         address.city = city
         address.state = state
         address.pincode = pincode
-        address.image_path = image_path
         address.modified_at = datetime.utcnow()
     else:
         address = AddressUpload(
@@ -63,29 +65,48 @@ def upload_address():
             city=city,
             state=state,
             pincode=pincode,
-            image_path=image_path,
             created_at=datetime.utcnow(),
             modified_at=datetime.utcnow()
         )
         db.session.add(address)
+        db.session.flush()  # Get address.id before adding images
+
+    # Save new images
+    for file in images:
+        if file and file.filename:
+            timestamp = datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+            filename = f"{application_number}_{timestamp}_{secure_filename(file.filename)}"
+            image_path = os.path.join(save_dir, filename)
+            file.save(image_path)
+
+            address_image = AddressImage(
+                address_upload_id=address.id,
+                image_path=image_path,
+                uploaded_at=datetime.utcnow()
+            )
+            db.session.add(address_image)
 
     db.session.commit()
 
     return jsonify({
         'status': 201,
-        'message': 'Address uploaded successfully',
+        'message': 'Address and images uploaded successfully',
         'data': {
             'application_number': application.application_number,
             'address_line': address.address_line,
             'city': address.city,
             'state': address.state,
             'pincode': address.pincode,
-            'image_path': address.image_path,
-            'public_url': f"/uploads/address_proof/{os.path.basename(address.image_path)}",
+            'images': [
+                {
+                    'image_path': img.image_path,
+                    'public_url': f"/uploads/address_proof/{os.path.basename(img.image_path)}"
+                } for img in address.images
+            ],
             'created_at': address.created_at.isoformat(),
             'modified_at': address.modified_at.isoformat()
         }
-    })
+    }), 201
 
 
 @address_upload_bp.route('/upload', methods=['GET'])

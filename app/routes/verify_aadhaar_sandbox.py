@@ -1,9 +1,125 @@
+import random
 import requests
 from flask import Blueprint, json, render_template, request, jsonify, current_app
-from app.models import AadhaarDetails, AadhaarOTP, AadhaarOTPSandboxDetails, AadhaarSandboxDetails
+from app.models import AadhaarDetails, AadhaarOTP, AadhaarOTPSandboxDetails, AadhaarSandboxDetails, Application
 from app.extensions import db
 
 aadhaar_bp = Blueprint('aadhaar_sandbox', __name__)
+
+# Test OTP
+
+
+@aadhaar_bp.route('/aadhaar/test-send-otp', methods=['POST'])
+def test_send_otp():
+    data = request.get_json()
+    aadhaar_number = data.get('aadhaar_number')
+
+    if not aadhaar_number:
+        return jsonify({'status': 400, 'message': 'Aadhaar number is required'}), 400
+
+    # Generate random 6-digit OTP
+    generated_otp = str(random.randint(100000, 999999))
+
+    # Simulate saving to DB
+    aadhaar_entry = AadhaarSandboxDetails.query.filter_by(
+        aadhaar_number=aadhaar_number).first()
+
+    if not aadhaar_entry:
+        aadhaar_entry = AadhaarSandboxDetails(
+            aadhaar_number=aadhaar_number,
+            reference_id=0  # Use valid logic here
+        )
+        db.session.add(aadhaar_entry)
+        db.session.commit()
+
+    otp_entry = AadhaarOTPSandboxDetails.query.filter_by(
+        aadhaar_id=aadhaar_entry.id).first()
+
+    if otp_entry:
+        otp_entry.transaction_id = None
+        otp_entry.client_id = None
+        otp_entry.otp_sent = True
+        otp_entry.message = "OTP generated"
+        otp_entry.reference_id = None
+        otp_entry.entity = "test"
+        otp_entry.code = 200
+        otp_entry.timestamp = None
+        otp_entry.test_otp = generated_otp  # custom field
+    else:
+        otp_entry = AadhaarOTPSandboxDetails(
+            aadhaar_id=aadhaar_entry.id,
+            transaction_id=None,
+            client_id=None,
+            otp_sent=True,
+            message="OTP generated",
+            reference_id=None,
+            entity="test",
+            code=200,
+            timestamp=None,
+            test_otp=generated_otp  # custom field
+        )
+        db.session.add(otp_entry)
+
+    db.session.commit()
+
+    return jsonify({
+        'status': 200,
+        'message': 'Test OTP sent',
+        'test_otp': generated_otp  # You can omit this in prod
+    }), 200
+
+
+@aadhaar_bp.route('/aadhaar/test-verify-otp', methods=['POST'])
+def test_verify_otp():
+    data = request.get_json()
+    aadhaar_number = data.get('aadhaar_number')
+    entered_otp = data.get('otp')
+
+    if not aadhaar_number or not entered_otp:
+        return jsonify({'status': 400, 'message': 'Missing Aadhaar or OTP'}), 400
+
+    aadhaar_entry = AadhaarSandboxDetails.query.filter_by(
+        aadhaar_number=aadhaar_number).first()
+
+    if not aadhaar_entry:
+        return jsonify({'status': 404, 'message': 'Aadhaar record not found'}), 404
+
+    otp_entry = AadhaarOTPSandboxDetails.query.filter_by(
+        aadhaar_id=aadhaar_entry.id).first()
+
+    if not otp_entry:
+        return jsonify({'status': 404, 'message': 'OTP entry not found'}), 404
+
+    # Fetch the linked application record
+    application = Application.query.filter_by(
+        aadhaar_id=aadhaar_entry.id).first()
+    if not application:
+        return jsonify({'status': 404, 'message': 'Application record not found'}), 404
+
+    application_number = application.application_number
+
+    if otp_entry.verified:
+        return jsonify({
+            'status': 200,
+            'message': 'Already verified',
+            'already_verified': True,
+            'aadhaar_number': aadhaar_number,
+            'application_number': application_number
+        }), 200
+
+    if otp_entry.test_otp != entered_otp:
+        return jsonify({'status': 401, 'message': 'Invalid OTP'}), 401
+
+    otp_entry.verified = True
+    db.session.commit()
+
+    return jsonify({
+        'status': 200,
+        'message': 'OTP verified successfully',
+        'aadhaar_number': aadhaar_number,
+        'application_number': application_number
+    }), 200
+
 
 # Initiate OTP Request
 
@@ -20,8 +136,8 @@ def send_otp():
         'Content-Type': 'application/json',
         'accept': 'application/json',
         'x-api-version': '2.0',
-        'x-api-key': current_app.config['RSANDBOX_API_KEY'],
-        'authorization': current_app.config['RSANDBOX_JWT_TOKEN'],
+        'x-api-key': current_app.config['SSANDBOX_API_KEY'],
+        'authorization': current_app.config['SSANDBOX_JWT_TOKEN'],
     }
 
     body = {
@@ -33,7 +149,7 @@ def send_otp():
 
     try:
         response = requests.post(
-            f"{current_app.config['RSANDBOX_BASE_URL']}/kyc/aadhaar/okyc/otp",
+            f"{current_app.config['SSANDBOX_BASE_URL']}/kyc/aadhaar/okyc/otp",
             headers=headers,
             json=body
         )
@@ -58,26 +174,48 @@ def send_otp():
         txn_id = data.get("txn_id")
         client_id = data.get("client_id")
 
-        # Ensure Aadhaar record exists
+        # Ensure AadhaarSandboxDetails record exists
         aadhaar_entry = AadhaarSandboxDetails.query.filter_by(
             aadhaar_number=aadhaar_number).first()
 
         if not aadhaar_entry:
+            # NOTE: reference_id is non-nullable, assign dummy or fetch properly
             aadhaar_entry = AadhaarSandboxDetails(
-                aadhaar_number=aadhaar_number
+                aadhaar_number=aadhaar_number,
+                reference_id=0  # or your logic here
             )
             db.session.add(aadhaar_entry)
             db.session.commit()
 
-        # Store OTP request status
-        otp_entry = AadhaarOTPSandboxDetails(
-            aadhaar_id=aadhaar_entry.id,
-            txn_id=txn_id,
-            client_id=client_id,
-            otp_sent=True,
-            raw_response=json.dumps(res)
-        )
-        db.session.add(otp_entry)
+        # Check if OTP entry already exists for this Aadhaar
+        otp_entry = AadhaarOTPSandboxDetails.query.filter_by(
+            aadhaar_id=aadhaar_entry.id).first()
+
+        if otp_entry:
+            # Update existing OTP entry
+            otp_entry.transaction_id = txn_id
+            otp_entry.client_id = client_id
+            otp_entry.otp_sent = True
+            otp_entry.message = res.get('message')
+            otp_entry.reference_id = data.get('reference_id')
+            otp_entry.entity = data.get('entity')
+            otp_entry.code = res.get('code')
+            otp_entry.timestamp = None  # convert if needed
+        else:
+            # Create new OTP entry
+            otp_entry = AadhaarOTPSandboxDetails(
+                aadhaar_id=aadhaar_entry.id,
+                transaction_id=txn_id,
+                client_id=client_id,
+                otp_sent=True,
+                message=res.get('message'),
+                reference_id=data.get('reference_id'),
+                entity=data.get('entity'),
+                code=res.get('code'),
+                timestamp=None
+            )
+            db.session.add(otp_entry)
+
         db.session.commit()
 
         return jsonify({
@@ -109,17 +247,25 @@ def aadhaar_send_otp():
 @aadhaar_bp.route('/aadhaar/verify-otp', methods=['POST'])
 def verify_otp():
     data = request.get_json()
-    reference_id = data.get('reference_id')
     otp = data.get('otp')
-    entity = data.get('entity', 'in.co.sandbox.kyc.aadhaar.okyc.request')
 
-    if not reference_id or not otp:
-        return jsonify({'status': 400, 'message': 'reference_id and otp are required'}), 400
+    if not otp:
+        return jsonify({'status': 400, 'message': 'otp is required'}), 400
+
+    # For example, find latest or relevant reference_id from aadhaar_otp_sandbox_details table
+    otp_record = AadhaarOTPSandboxDetails.query.order_by(
+        AadhaarOTPSandboxDetails.created_at.desc()).first()
+    if not otp_record or not otp_record.reference_id:
+        return jsonify({'status': 400, 'message': 'No reference_id found in records'}), 400
+
+    reference_id = otp_record.reference_id
+
+    entity = data.get('entity', 'in.co.sandbox.kyc.aadhaar.okyc.request')
 
     headers = {
         'Content-Type': 'application/json',
-        'authorization': current_app.config['SANDBOX_JWT_TOKEN'],
-        'x-api-key': current_app.config['SANDBOX_API_KEY'],
+        'authorization': current_app.config['SSANDBOX_JWT_TOKEN'],
+        'x-api-key': current_app.config['SSANDBOX_API_KEY'],
         'x-api-version': '2.0'
     }
 
@@ -131,17 +277,15 @@ def verify_otp():
 
     try:
         response = requests.post(
-            f"{current_app.config['SANDBOX_BASE_URL']}/kyc/aadhaar/okyc/otp/verify",
+            f"{current_app.config['SSANDBOX_BASE_URL']}/kyc/aadhaar/okyc/otp/verify",
             headers=headers,
             json=body
         )
         res = response.json()
 
-        # if res.get("success"):
         if res.get("code") == 200:
             aadhaar_data = res.get("data", {})
 
-            # Store in aadhaar_sandbox_details table
             details = AadhaarSandboxDetails(
                 aadhaar_number=aadhaar_data.get("aadhaar_number"),
                 name=aadhaar_data.get("full_name"),
@@ -156,7 +300,6 @@ def verify_otp():
             db.session.add(details)
             db.session.commit()
 
-            # Optionally update AadhaarOTP if applicable
             otp_entry = AadhaarOTP.query.filter_by(
                 otp_txn_id=reference_id).first()
             if otp_entry:

@@ -178,7 +178,7 @@
 
       if (!application_number) {
         alert("Invalid access. Please start from the verification page.");
-        window.location.href = "/verify-mobile-twilio";
+        window.location.href = "/verify-mobile";
       } else {
         // Generate barcode
         JsBarcode("#barcode-right", application_number, {
@@ -233,7 +233,7 @@
                   "#successModal .btn-success"
                 );
                 okButton.addEventListener("click", () => {
-                  window.location.href = "/aadhaar/send-otp";
+                  window.location.href = "/address/address-upload-form";
                 });
               }
             } catch (err) {
