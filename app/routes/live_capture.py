@@ -70,6 +70,7 @@ def upload_live_image():
         live_photo = LiveWebcamPhoto(
             mobile_id=mobile.id,
             aadhaar_id=aadhaar.id,
+            application_id=application.id,
             image_path=image_path
         )
         db.session.add(live_photo)

@@ -97,7 +97,7 @@
       {% endif %}
     </div>
 
-    <!-- Hidden form to POST data to Flask route for PDF generation -->
+    <!-- Hidden form for PDF generation -->
     <form
       id="pdfForm"
       action="{{ url_for('frontend.generate_pdf') }}"
@@ -113,13 +113,37 @@
         name="address"
         value="{{ data.address.address_line }}, {{ data.address.city }}, {{ data.address.state }} - {{ data.address.pincode }}"
       />
+
+      {% if data.esignature %}
+      <input
+        type="hidden"
+        name="esignature_path"
+        value="{{ url_for('uploaded_file', filename=data.esignature.image_path.replace('uploads/', '').replace('uploads\\', '').replace('\\', '/')) }}"
+      />
+
+      
+      {% endif %} {% if data.live_photo %}
+      <input
+        type="hidden"
+        name="live_photo_path"
+        value="/{{ data.live_photo.image_path.replace('\\', '/') }}"
+      />
+      {% endif %}
     </form>
 
-    <button
-      class="btn btn-primary"
-      onclick="document.getElementById('pdfForm').submit();"
-    >
-      Download PDF
-    </button>
+    <!-- Button to trigger PDF download -->
+    <button id="downloadPdf" class="btn btn-primary">Download PDF</button>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const pdfButton = document.getElementById("downloadPdf");
+        const pdfForm = document.getElementById("pdfForm");
+
+        pdfButton.addEventListener("click", function (e) {
+          e.preventDefault();
+          pdfForm.submit();
+        });
+      });
+    </script>
   </body>
 </html>

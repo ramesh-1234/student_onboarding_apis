@@ -51,11 +51,13 @@ def send_otp_via_sms(mobile, otp):
         message = twilio_client.messages.create(
             body=f"Your OTP is: {otp}",
             from_=twilio_number,
-            to=f"+91{mobile}"  # Adjust for country code
+            to=f"+91{mobile}"  # Ensure proper country code
         )
-        logging.info(f"SMS sent to {mobile}: SID={message.sid}")
+        logging.info(f"[SMS] OTP sent to {mobile}: SID={message.sid}")
+        return {"status": "sent", "sid": message.sid}
     except Exception as e:
-        logging.error(f"Failed to send SMS: {e}")
+        logging.error(f"[SMS] Failed to send OTP to {mobile}: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 def send_otp_via_whatsapp(mobile, otp):
@@ -63,11 +65,13 @@ def send_otp_via_whatsapp(mobile, otp):
         message = twilio_client.messages.create(
             body=f"Your WhatsApp OTP is: {otp}",
             from_=twilio_whatsapp,
-            to=f"whatsapp:+91{mobile}"  # Adjust for country code
+            to=f"whatsapp:+91{mobile}"  # Ensure proper WhatsApp format
         )
-        logging.info(f"WhatsApp sent to {mobile}: SID={message.sid}")
+        logging.info(f"[WhatsApp] OTP sent to {mobile}: SID={message.sid}")
+        return {"status": "sent", "sid": message.sid}
     except Exception as e:
-        logging.error(f"Failed to send WhatsApp: {e}")
+        logging.error(f"[WhatsApp] Failed to send OTP to {mobile}: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 def send_email_otp(email, otp):
@@ -206,7 +210,7 @@ def verify_email_twilio():
 def verify_mobile_twilio():
     data = request.get_json()
     mobile = data.get('mobile')
-    channel = data.get('channel', 'sms').lower()  # default to SMS
+    channel = data.get('channel', 'sms').lower()
 
     if not mobile or not is_mobile_valid(mobile):
         return jsonify({
@@ -225,7 +229,8 @@ def verify_mobile_twilio():
         db.session.commit()
 
     # ==== [EXISTING_APPLICATION_CHECK] ====
-    existing_app = Application.query.filter_by(mobile_id=mobile_entry.id).first()
+    existing_app = Application.query.filter_by(
+        mobile_id=mobile_entry.id).first()
     if existing_app:
         return jsonify({
             'status': 200,
@@ -236,6 +241,18 @@ def verify_mobile_twilio():
             }
         }), 200
     # ==== [/EXISTING_APPLICATION_CHECK] ====
+
+    # Send OTP via Twilio (before storing it)
+    if channel == "whatsapp":
+        send_result = send_otp_via_whatsapp(mobile, otp)
+    else:
+        send_result = send_otp_via_sms(mobile, otp)
+
+    if send_result.get("status") != "sent":
+        return jsonify({
+            'status_code': 400,
+            'message': f'Failed to send OTP: {send_result.get("message", "Unknown error")}'
+        }), 400
 
     # Create or update OTP record
     now = datetime.utcnow()
@@ -257,21 +274,14 @@ def verify_mobile_twilio():
 
     db.session.commit()
 
-    # Send OTP via chosen channel
-    if channel == "whatsapp":
-        send_otp_via_whatsapp(mobile, otp)
-    else:
-        send_otp_via_sms(mobile, otp)
-
     return jsonify({
         'status': 200,
         'message': f'OTP sent via {channel}',
         'data': {
-            'otp': otp,  # ⚠️ Remove this in production!
+            'otp': otp,  # ⚠️ Remove in production
             'created_at': otp_entry.created_at.isoformat()
         }
     }), 200
-
 
 
 @verify_bp.route('/verify-email', methods=['POST'])

@@ -27,6 +27,7 @@ def create_app():
     from app.routes.frontend import frontend_bp
     from app.routes.verify_pancard import verify_pancard_bp
     from app.routes.verify_aadhaar_sandbox import aadhaar_bp
+    from app.routes.test_extractor import test_bp
     app.register_blueprint(verify_bp)
     app.register_blueprint(account_bp)
     app.register_blueprint(
@@ -38,11 +39,20 @@ def create_app():
     app.register_blueprint(frontend_bp)
     app.register_blueprint(verify_pancard_bp)
     app.register_blueprint(aadhaar_bp)
+    app.register_blueprint(test_bp)
 
     # Serve files from the uploads folder
 
     @app.route('/uploads/<path:filename>')
     def uploaded_file(filename):
-        uploads_path = os.path.join(os.getcwd(), 'uploads')
+        # Point to: backend/uploads
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        uploads_path = os.path.join(base_dir, 'uploads')
+        file_path = os.path.join(uploads_path, filename)
+
+        if not os.path.exists(file_path):
+            return f"File not found: {file_path}", 404
+
         return send_from_directory(uploads_path, filename)
+
     return app

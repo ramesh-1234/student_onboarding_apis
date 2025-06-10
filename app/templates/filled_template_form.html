@@ -3,20 +3,88 @@
   <head>
     <meta charset="UTF-8" />
     <title>SBI Account Opening Form</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
-  </head>
-  <body class="p-4">
-    <div class="container border p-4 shadow">
-      <h2 class="mb-4">SBI Account Opening Form</h2>
+    <style>
+      .checkbox-grid {
+        display: flex;
+        flex-wrap: nowrap; /* prevent wrapping */
+        gap: 0.5rem;
+        align-items: center;
+        overflow-x: auto; /* allow horizontal scroll if overflow */
+        padding-bottom: 0.5rem; /* spacing below if needed */
+      }
 
-      <p><strong>Full Name:</strong> {{ data.full_name }}</p>
-      <p><strong>Date of Birth:</strong> {{ data.dob }}</p>
-      <p><strong>Gender:</strong> {{ data.gender }}</p>
-      <p><strong>Mobile:</strong> {{ data.mobile }}</p>
-      <p><strong>Address:</strong> {{ data.address }}</p>
+      /* Custom checkbox style: square with character inside */
+      .char-checkbox {
+        position: relative;
+        width: 40px;
+        height: 40px;
+        border: 2px solid #a5d8ff; /* light blue border */
+        background-color: white; /* white background */
+        font-weight: bold;
+        font-size: 1.25rem;
+        color: black; /* black text */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        user-select: none;
+      }
+
+      .static-label {
+        font-weight: 600;
+      }
+      .static-value {
+        border: 1px solid #ccc;
+        padding: 0.5rem;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container py-4">
+      <h2 class="mb-4">SBI Account Opening Form (Demo)</h2>
+
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">A. Personal Details</div>
+        <div class="card-body row g-3">
+          <div class="col-md-6">
+            <label class="form-label static-label">Name*</label>
+            <div class="checkbox-grid">
+              {% for char in data.full_name.upper() %} {% if char != ' ' %}
+              <div class="char-checkbox" title="{{ char }}">{{ char }}</div>
+              {% endif %} {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label static-label">Date of Birth</label>
+            <div class="static-value">{{ data.dob }}</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label static-label">Gender</label>
+            <div class="static-value">{{ data.gender }}</div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label static-label">Mobile Number</label>
+            <div class="static-value">{{ data.mobile }}</div>
+          </div>
+
+          <div class="col-md-12">
+            <label class="form-label static-label">Address</label>
+            <div class="static-value">{{ data.address }}</div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>

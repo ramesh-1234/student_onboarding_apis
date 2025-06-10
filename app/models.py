@@ -353,6 +353,3 @@ class PanCard(db.Model):
     is_verified = db.Column(db.Boolean, default=False)
 
     email = db.relationship("Email", backref=db.backref("pancards", lazy=True))
-
-
-0

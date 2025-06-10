@@ -69,6 +69,58 @@ def test_send_otp():
     }), 200
 
 
+# @aadhaar_bp.route('/aadhaar/test-verify-otp', methods=['POST'])
+# def test_verify_otp():
+#     data = request.get_json()
+#     aadhaar_number = data.get('aadhaar_number')
+#     entered_otp = data.get('otp')
+
+#     if not aadhaar_number or not entered_otp:
+#         return jsonify({'status': 400, 'message': 'Missing Aadhaar or OTP'}), 400
+
+#     aadhaar_entry = AadhaarSandboxDetails.query.filter_by(
+#         aadhaar_number=aadhaar_number).first()
+
+#     if not aadhaar_entry:
+#         return jsonify({'status': 404, 'message': 'Aadhaar record not found'}), 404
+
+#     otp_entry = AadhaarOTPSandboxDetails.query.filter_by(
+#         aadhaar_id=aadhaar_entry.id).first()
+
+#     if not otp_entry:
+#         return jsonify({'status': 404, 'message': 'OTP entry not found'}), 404
+
+#     # Fetch the linked application record
+#     application = Application.query.filter_by(
+#         aadhaar_id=aadhaar_entry.id).first()
+#     if not application:
+#         return jsonify({'status': 404, 'message': 'Application record not found'}), 404
+
+#     application_number = application.application_number
+
+#     if otp_entry.verified:
+#         return jsonify({
+#             'status': 200,
+#             'message': 'Already verified',
+#             'already_verified': True,
+#             'aadhaar_number': aadhaar_number,
+#             'application_number': application_number
+#         }), 200
+
+#     if otp_entry.test_otp != entered_otp:
+#         return jsonify({'status': 401, 'message': 'Invalid OTP'}), 401
+
+#     otp_entry.verified = True
+#     db.session.commit()
+
+#     return jsonify({
+#         'status': 200,
+#         'message': 'OTP verified successfully',
+#         'aadhaar_number': aadhaar_number,
+#         'application_number': application_number
+#     }), 200
+
+
 @aadhaar_bp.route('/aadhaar/test-verify-otp', methods=['POST'])
 def test_verify_otp():
     data = request.get_json()
@@ -90,13 +142,16 @@ def test_verify_otp():
     if not otp_entry:
         return jsonify({'status': 404, 'message': 'OTP entry not found'}), 404
 
-    # Fetch the linked application record
     application = Application.query.filter_by(
         aadhaar_id=aadhaar_entry.id).first()
     if not application:
         return jsonify({'status': 404, 'message': 'Application record not found'}), 404
 
     application_number = application.application_number
+
+    # ✅ OTP check (robust string match)
+    if str(otp_entry.test_otp).strip() != str(entered_otp).strip():
+        return jsonify({'status': 401, 'message': 'Invalid OTP'}), 401
 
     if otp_entry.verified:
         return jsonify({
@@ -106,9 +161,6 @@ def test_verify_otp():
             'aadhaar_number': aadhaar_number,
             'application_number': application_number
         }), 200
-
-    if otp_entry.test_otp != entered_otp:
-        return jsonify({'status': 401, 'message': 'Invalid OTP'}), 401
 
     otp_entry.verified = True
     db.session.commit()
@@ -136,8 +188,8 @@ def send_otp():
         'Content-Type': 'application/json',
         'accept': 'application/json',
         'x-api-version': '2.0',
-        'x-api-key': current_app.config['SSANDBOX_API_KEY'],
-        'authorization': current_app.config['SSANDBOX_JWT_TOKEN'],
+        'x-api-key': current_app.config['RSANDBOX_API_KEY'],
+        'authorization': current_app.config['RSANDBOX_JWT_TOKEN'],
     }
 
     body = {
@@ -149,7 +201,7 @@ def send_otp():
 
     try:
         response = requests.post(
-            f"{current_app.config['SSANDBOX_BASE_URL']}/kyc/aadhaar/okyc/otp",
+            f"{current_app.config['RSANDBOX_BASE_URL']}/kyc/aadhaar/okyc/otp",
             headers=headers,
             json=body
         )
@@ -264,8 +316,8 @@ def verify_otp():
 
     headers = {
         'Content-Type': 'application/json',
-        'authorization': current_app.config['SSANDBOX_JWT_TOKEN'],
-        'x-api-key': current_app.config['SSANDBOX_API_KEY'],
+        'authorization': current_app.config['RSANDBOX_JWT_TOKEN'],
+        'x-api-key': current_app.config['RSANDBOX_API_KEY'],
         'x-api-version': '2.0'
     }
 
@@ -277,7 +329,7 @@ def verify_otp():
 
     try:
         response = requests.post(
-            f"{current_app.config['SSANDBOX_BASE_URL']}/kyc/aadhaar/okyc/otp/verify",
+            f"{current_app.config['RSANDBOX_BASE_URL']}/kyc/aadhaar/okyc/otp/verify",
             headers=headers,
             json=body
         )
